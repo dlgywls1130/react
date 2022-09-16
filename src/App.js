@@ -1,56 +1,68 @@
-import { memo, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import './App.css';
 import MemoContainer from './components/MemoContainer';
 import SideBar from './components/SideBar';
+import { setItem, getItem } from './lib/storage';
+import debounce from 'lodash.debounce';
+
+const debouncedSetItem = debounce(setItem, 5000);
 
 function App() {
-    const [memos, setMemos] = useState([
-        {
-            title: 'Memo 1',
-            content: 'this is memo 1',
-            createdAt: 1661833987869,
-            updatedAt: 1661833987869,
-        },
-        {
-            title: 'Memo 2',
-            content: 'this is memo 2',
-            createdAt: 1661834017365,
-            updatedAt: 1661834017365,
-        },
-    ]);
+    const [memos, setMemos] = useState(getItem('memo') || []);
 
     const [selectedMemoIndex, setSelectedMemoIndex] = useState(0);
 
-    const setMemo = (newMemo) => {
-        const newMemos = [...memos];
-        newMemos[selectedMemoIndex] = newMemo;
-        setMemos(newMemos);
-    };
+    const setMemo = useCallback(
+        (newMemo) => {
+            // setMemos(newMemos);
+            setMemos((memos) => {
+                const newMemos = [...memos];
 
-    const addMemo = () => {
-        const now = new Date().getTime();
+                newMemos[selectedMemoIndex] = newMemo;
+                debouncedSetItem('memo', newMemos);
 
-        setMemos([
-            ...memos,
-            {
-                title: 'Untitled',
-                content: '',
-                createdAt: now,
-                updatedAt: now,
-            },
-        ]);
+                return newMemos;
+            });
+        },
+        [selectedMemoIndex],
+    );
+
+    const addMemo = useCallback(() => {
+        setMemos((memos) => {
+            const now = new Date().getTime();
+            const newMemos = [
+                ...memos,
+                {
+                    title: 'Untitled',
+                    content: '',
+                    createdAt: now,
+                    updatedAt: now,
+                },
+            ];
+
+            debouncedSetItem('memo', newMemos);
+
+            return newMemos;
+        });
         setSelectedMemoIndex(memos.length);
-    };
+    }, [memos]);
 
-    const deleteMemo = (index) => {
-        const newMemos = [...memos];
-        newMemos.splice(index, 1);
+    const deleteMemo = useCallback(
+        (index) => {
+            setMemos((memos) => {
+                const newMemos = [...memos];
 
-        setMemos(newMemos);
-        if (index === selectedMemoIndex) {
-            setSelectedMemoIndex(0);
-        }
-    };
+                newMemos.splice(index, 1);
+                debouncedSetItem('memo', newMemos);
+
+                return newMemos;
+            });
+            if (index === selectedMemoIndex) {
+                setSelectedMemoIndex(0);
+            }
+        },
+        [selectedMemoIndex],
+    );
 
     return (
         <div className="App">
